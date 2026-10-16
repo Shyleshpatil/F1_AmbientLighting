@@ -1,17 +1,17 @@
-# 🏎️ F1 Ambient Lighting Controller
+# F1 Ambient Lighting Controller
 
 Bring the thrill of Formula 1 race day into your room! This application tracks live F1 telemetry and automatically changes the color of your ambient LED lighting to match the livery of the team currently in 1st Place (P1). 
 
 When a driver makes an overtake for the lead, your room instantly changes color to match.
 
-## 🛠️ Resources & Technologies Used
+## Resources & Technologies Used
 * **Java (11/17):** Core application logic, API polling, and state management.
 * **Python (3.x):** Hardware interfacing using the asynchronous `bleak` library.
 * **OpenF1 API:** Providing live, real-time race telemetry and driver data.
 * **Maven:** Dependency management and standalone JAR packaging.
 * **Hardware:** Any generic Bluetooth LED strip utilizing the "Lotus Lantern" or "ELK-BLEDOM" protocol.
 
-## 🧠 How It Works
+## How It Works
 1. **The Poller:** A lightweight Java background process queries the live [OpenF1 API](https://openf1.org/) every 5 seconds.
 2. **The Logic:** It fetches the `driver_number` currently holding Position 1 and cross-references it to their current `team_name`.
 3. **The Trigger:** If the leader has changed, Java maps the team to a predefined RGB hex value.
@@ -19,7 +19,7 @@ When a driver makes an overtake for the lead, your room instantly changes color 
 
 ---
 
-## 🚀 Setup & Deployment Guide
+##  Setup & Deployment Guide
 
 Because hardware configurations differ, the final **Deployment Folder** is not included in this repository. Follow these steps to build and deploy the application locally on your machine.
 
@@ -41,7 +41,7 @@ Create a new, empty folder anywhere on your computer (e.g., `C:\F1_Lighting\`).
 
 Copy the following two files into this new folder:
 1. `target/ambient-tracker-1.0-SNAPSHOT.jar` (Generated in Step 1)
-2. `send_ble_color.py` (Found in the root of the repository)
+2. `light_ble.py` (Found in the root of the repository)
 
 ### Step 3: Create the Batch Launcher
 Inside your deployment folder, create a new text file named `F1_Lighting.bat`. Add the following code and save it:
@@ -58,7 +58,7 @@ Your final deployment folder should look exactly like this:
 F1_Lighting/
 ├── ambient-tracker-1.0-SNAPSHOT.jar
 ├── F1_Lighting.bat
-└── send_ble_color.py
+└── light_ble.py
 ```
 
 ### Step 4: First Launch
@@ -66,7 +66,7 @@ Double-click `F1_Lighting.bat`. On the very first run, a pop-up window will ask 
 
 ---
 
-## ⚠️ Troubleshooting & Known Issues
+##  Troubleshooting & Known Issues
 
 ### 1. Error: `'java' is not recognized as an internal or external command`
 **The Problem:** You double-clicked the `.bat` file, but Windows doesn't know where Java is installed because it's not in your system environment variables. (This is common if you rely on your IDE's bundled Java).
@@ -90,5 +90,12 @@ If you are writing a custom BLE scanner script and Windows throws a `UnicodeEnco
 If the Python script runs successfully but the lights don't change, your specific controller might use a different BLE Characteristic UUID. 
 **The Fix:** Open `send_ble_color.py` and modify the `BLE_CHAR_UUID` variable. Common Lotus Lantern UUIDs are `ffe9`, `fff3`, `ffe1`, or `ffd9`. (The default in this repo is `fff3`).
 
+### 4. Change the MAC address (Add new light replacing the old one)
+If you want to connect to a new light, we can't do it on start up again. Since we programmed the application to save your MAC address after the very first launch, we require to go to your deployment folder (e.g., C:\F1LightingApp\) where your .bat and .jar files live.
+**The Fix:** 
+Look for the file named config.properties in your deployment folder.
+Delete it.
+Double-click your F1_Lighting.bat file. Because the file is missing, the application will automatically pop up the initial setup dialog box again and ask you to type in the new MAC address.
+
 ---
-*Happy Racing!* 🏁
+*Happy Racing!* 
