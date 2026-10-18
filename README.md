@@ -100,6 +100,7 @@ Double-click your F1_Lighting.bat file. Because the file is missing, the applica
 
 ### Snapshot
 Verstapen, Redbull in P1 in Singapore GP (11th Oct 20206)
+
 <img width="512" height="911" alt="image" src="https://github.com/user-attachments/assets/06e21b5e-7b7c-4bf8-a876-992dcd9d29db" />
 
 ---
