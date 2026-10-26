@@ -16,12 +16,14 @@ import java.util.Properties;
 public class Main {
 
     private static final String CONFIG_FILE = "config.properties";
-    private static final String API_BASE = "https://api.openf1.org/v1";
 
     private final String bleMacAddress;
+    private final String apiBaseUrl;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
+
     private String currentLeaderTeam = null;
+    private String previousTrackStatus = "1"; // "1" is the FIA code for Track Clear (Green)
 
     private static final Map<String, int[]> TEAM_COLORS = Map.of(
             "Ferrari", new int[]{255, 0, 0},
@@ -36,8 +38,9 @@ public class Main {
             "Racing Bulls", new int[]{25, 50, 255}
     );
 
-    public Main(String bleMacAddress) {
+    public Main(String bleMacAddress, String apiBaseUrl) {
         this.bleMacAddress = bleMacAddress;
+        this.apiBaseUrl = apiBaseUrl;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
                 .build();
@@ -60,7 +63,6 @@ public class Main {
             }
         }
 
-        // Display an input dialog if no configuration is found
         String macInput = JOptionPane.showInputDialog(
                 null,
                 "Enter your Lotus Lantern BLE MAC Address (e.g., 7D:E0:BB:72:B3:AD):",
@@ -88,7 +90,7 @@ public class Main {
         System.out.println("==================================================");
         System.out.println(" F1 AMBIENT LIGHTING ENGINE ACTIVATED");
         System.out.println(" Target MAC: " + bleMacAddress);
-        System.out.println(" Polling: " + API_BASE);
+        System.out.println(" Polling: " + apiBaseUrl);
         System.out.println("==================================================");
 
         while (true) {
@@ -106,48 +108,88 @@ public class Main {
 
     public String pollAndUpdate() {
         try {
-            // 1. Fetch current leader driver number
-            HttpRequest posRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE + "/position?session_key=latest&position=1"))
-                    .GET().build();
-            HttpResponse<String> posResponse = httpClient.send(posRequest, HttpResponse.BodyHandlers.ofString());
-            JsonNode posData = objectMapper.readTree(posResponse.body());
-
-            if (posData.isEmpty() || !posData.isArray()) return null;
-
-            int driverNumber = posData.get(posData.size() - 1).get("driver_number").asInt();
-
-            // 2. Resolve team name
-            HttpRequest driverRequest = HttpRequest.newBuilder()
-                    .uri(URI.create(API_BASE + "/drivers?session_key=latest&driver_number=" + driverNumber))
-                    .GET().build();
-            HttpResponse<String> driverResponse = httpClient.send(driverRequest, HttpResponse.BodyHandlers.ofString());
-            JsonNode driverData = objectMapper.readTree(driverResponse.body());
-
-            if (driverData.isEmpty() || !driverData.isArray()) return null;
-
-            String team = driverData.get(driverData.size() - 1).get("team_name").asText();
-
-            if (!team.equals(currentLeaderTeam)) {
-                System.out.printf("%n[LEAD CHANGE] %s has taken P1!%n", team);
-                currentLeaderTeam = team;
-
-                int[] rgb = TEAM_COLORS.getOrDefault(team, new int[]{255, 255, 255});
-                triggerBle(rgb[0], rgb[1], rgb[2]);
+            // 1. FETCH LIVE TRACK STATUS
+            String trackStatus = "1";
+            try {
+                HttpRequest statusReq = HttpRequest.newBuilder()
+                        .uri(URI.create(apiBaseUrl + "/api/status"))
+                        .GET().build();
+                HttpResponse<String> statusRes = httpClient.send(statusReq, HttpResponse.BodyHandlers.ofString());
+                JsonNode statusNode = objectMapper.readTree(statusRes.body());
+                if (statusNode.has("Status")) {
+                    trackStatus = statusNode.get("Status").asText();
+                }
+            } catch (Exception e) {
+                System.err.println("Warning: Could not fetch track status.");
             }
-            return team;
+
+            // 2. FETCH CURRENT LEADER
+            HttpRequest leaderReq = HttpRequest.newBuilder()
+                    .uri(URI.create(apiBaseUrl + "/api/leaderboard"))
+                    .GET().build();
+            HttpResponse<String> leaderRes = httpClient.send(leaderReq, HttpResponse.BodyHandlers.ofString());
+            JsonNode data = objectMapper.readTree(leaderRes.body());
+
+            if (data.isEmpty() || !data.has("Lines")) return null;
+
+            JsonNode lines = data.get("Lines");
+            String p1Team = null;
+
+            java.util.Iterator<Map.Entry<String, JsonNode>> fields = lines.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                JsonNode driverData = field.getValue();
+
+                if (driverData.has("Position") && driverData.get("Position").asText().equals("1")) {
+                    p1Team = driverData.has("TeamName") ? driverData.get("TeamName").asText() : null;
+                    break;
+                }
+            }
+
+            if (p1Team == null) return null;
+
+            // 3. DETERMINE FLAGS AND TRIGGERS
+            boolean statusChanged = !trackStatus.equals(previousTrackStatus);
+            boolean leaderChanged = !p1Team.equalsIgnoreCase(currentLeaderTeam);
+
+            String mode = "SOLID";
+            if (trackStatus.equals("5")) {
+                mode = "BLINK_RED";
+            } else if (trackStatus.equals("2") || trackStatus.equals("4") || trackStatus.equals("6")) {
+                mode = "BLINK_YELLOW";
+            }
+
+            if (statusChanged && !trackStatus.equals("1")) {
+                System.out.println("\n[TRACK ALERT] FIA Flag Status changed to: " + trackStatus);
+            }
+
+            // Fire the lights if we need to blink, or if the flag cleared, or if the leader changed
+            if (mode.startsWith("BLINK") || statusChanged || leaderChanged) {
+                if (leaderChanged) {
+                    System.out.printf("%n[LEAD CHANGE] %s has taken P1!%n", p1Team);
+                }
+
+                currentLeaderTeam = p1Team;
+                previousTrackStatus = trackStatus;
+
+                int[] rgb = TEAM_COLORS.getOrDefault(currentLeaderTeam, new int[]{255, 255, 255});
+                triggerBle(mode, rgb[0], rgb[1], rgb[2]);
+            }
+
+            return p1Team;
         } catch (Exception e) {
-            System.err.println("Cycle error: " + e.getMessage());
+            System.err.println("Polling error: " + e.getMessage());
             return null;
         }
     }
 
-    private void triggerBle(int r, int g, int b) {
+    private void triggerBle(String mode, int r, int g, int b) {
         try {
             ProcessBuilder pb = new ProcessBuilder(
                     "python",
                     "light_ble.py",
                     bleMacAddress,
+                    mode,
                     String.valueOf(r),
                     String.valueOf(g),
                     String.valueOf(b)
@@ -162,6 +204,7 @@ public class Main {
 
     public static void main(String[] args) {
         String mac = getOrPromptMacAddress();
-        new Main(mac).startPolling();
+        // Pointing to your local Node.js bridge
+        new Main(mac, "http://localhost:3000").startPolling();
     }
 }
