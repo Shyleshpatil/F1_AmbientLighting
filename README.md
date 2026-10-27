@@ -1,10 +1,10 @@
-# 🏎️ F1 Ambient Lighting Controller
+#  F1 Ambient Lighting Controller
 
 Bring the thrill of Formula 1 race day into your room! This application tracks live F1 telemetry and automatically changes the color of your ambient LED lighting to match the livery of the team currently in 1st Place (P1). 
 
 **New:** Now with real-time Track Flag support! When the FIA issues a Safety Car, Virtual Safety Car, or Red Flag, your room will pulse Yellow or Red to match track conditions before seamlessly transitioning back to the leader's color when the track goes green.
 
-## 🛠️ Resources & Technologies Used
+##  Resources & Technologies Used
 - **Node.js:** Hosts the local timing bridge, tapping directly into the official FIA websocket with zero latency or rate limits.
 - **Java (11/17):** Core application logic, API polling, and state management.
 - **Python (3.x):** Hardware interfacing and animation sequencing using the asynchronous `bleak` library.
@@ -12,7 +12,7 @@ Bring the thrill of Formula 1 race day into your room! This application tracks l
 - **Maven:** Dependency management and standalone JAR packaging.
 - **Hardware:** Any generic Bluetooth LED strip utilizing the "Lotus Lantern" or "ELK-BLEDOM" protocol.
 
-## 🧠 How It Works
+##  How It Works
 1. **The Bridge:** A local Node.js server continuously listens to the official FIA live stream, exposing real-time REST endpoints (`/api/status` and `/api/leaderboard`).
 2. **The Poller:** A lightweight Java background process queries the local bridge every 5 seconds.
 3. **The Logic:** Java first checks for track flags (Safety Car, Red Flag, etc.). If the track is clear, it fetches the P1 driver and maps their team to a predefined RGB hex value.
@@ -20,7 +20,7 @@ Bring the thrill of Formula 1 race day into your room! This application tracks l
 
 ---
 
-## 🚀 Setup & Deployment Guide
+##  Setup & Deployment Guide
 
 Because hardware configurations differ, the final **Deployment Folder** is not included in this repository. Follow these steps to build and deploy the application locally on your machine.
 
@@ -54,7 +54,7 @@ Create a new, empty folder anywhere on your computer (e.g., `C:\F1_Lighting\`).
 
 Copy the following two files into this new folder:
 1. `target/ambient-tracker-1.0-SNAPSHOT.jar` (Generated in Step 2)
-2. `send_ble_color.py` (Found in the root of the repository)
+2. `light_ble.py` (Found in the root of the repository)
 
 ### Step 4: Create the Batch Launcher
 Inside your deployment folder, create a new text file named `F1_Lighting.bat`. Add the following code and save it:
@@ -71,7 +71,7 @@ Your final deployment folder should look exactly like this:
 F1_Lighting/
 ├── ambient-tracker-1.0-SNAPSHOT.jar
 ├── F1_Lighting.bat
-└── send_ble_color.py
+└── light_ble.py
 ```
 
 ### Step 5: First Launch
@@ -79,7 +79,26 @@ Double-click `F1_Lighting.bat`. On the very first run, a pop-up window will ask 
 
 ---
 
-## ⚠️ Troubleshooting & Known Issues
+
+### Application In Action :
+
+**Austin GP** Kimmi Leads.
+
+
+
+<img width="512" height="911" alt="image" src="https://github.com/user-attachments/assets/483dfc5e-dbd6-47c9-b79e-cee2422e12e8" /> .
+
+
+
+**Singapore GP** Max Leads.
+
+
+
+<img width="512" height="911" alt="image" src="https://github.com/user-attachments/assets/95be06a1-1926-4989-8b7e-6b68bd6a8a09" /> .
+
+
+
+##  Troubleshooting & Known Issues
 
 ### 1. Error: `'java' is not recognized as an internal or external command`
 **The Problem:** You double-clicked the `.bat` file, but Windows doesn't know where Java is installed because it's not in your system environment variables. (This is common if you rely on your IDE's bundled Java).
@@ -105,7 +124,11 @@ If you are writing a custom BLE scanner script and Windows throws a `UnicodeEnco
 
 ### 4. Lights are not responding (Wrong UUID)
 If the Python script runs successfully but the lights don't change, your specific controller might use a different BLE Characteristic UUID. 
-**The Fix:** Open `send_ble_color.py` and modify the `BLE_CHAR_UUID` variable. Common Lotus Lantern UUIDs are `ffe9`, `fff3`, `ffe1`, or `ffd9`.
+**The Fix:** Open `light_ble.py` and modify the `BLE_CHAR_UUID` variable. Common Lotus Lantern UUIDs are `ffe9`, `fff3`, `ffe1`, or `ffd9`.
 
 ---
+Created With ❤️‍🔥 by **Shylesh.**
+
+
+
 *Happy Racing!* 🏁
